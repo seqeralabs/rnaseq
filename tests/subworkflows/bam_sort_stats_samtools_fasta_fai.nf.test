@@ -1,0 +1,39 @@
+nextflow_workflow {
+
+    name "Test BAM_SORT_STATS_SAMTOOLS fasta+fai input"
+    script "../../subworkflows/nf-core/bam_sort_stats_samtools/main.nf"
+    workflow "BAM_SORT_STATS_SAMTOOLS"
+
+    test("Regression: fasta input must include fai - stub") {
+
+        options "-stub"
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of([
+                    [ id:'test', single_end:false ], // meta map
+                    file(params.modules_testdata_base_path + 'genomics/sarscov2/illumina/bam/test.single_end.bam', checkIfExists: true)
+                ])
+                // The fasta input channel must include the fai index as a
+                // 3-element tuple: [ meta, fasta, fai ].
+                // Previously, workflows/rnaseq/main.nf only passed [ meta, fasta ]
+                // which caused "Path value cannot be null" at runtime.
+                input[1] = Channel.of([
+                    [ id:'genome' ],
+                    file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta', checkIfExists: true),
+                    file(params.modules_testdata_base_path + 'genomics/sarscov2/genome/genome.fasta.fai', checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.out.bam },
+                { assert workflow.out.versions }
+            )
+        }
+    }
+}
